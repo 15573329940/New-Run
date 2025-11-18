@@ -16,6 +16,7 @@ public class PlayerStateBase
     public float verticalInput;
     public KeyCode jumpKey = KeyCode.Space;
     public KeyCode shiftKey = KeyCode.LeftShift;
+    public KeyCode attackKey = KeyCode.Mouse0;
     public List<KeyCode> swingKeys = new List<KeyCode>() { KeyCode.Q, KeyCode.E };
     public LayerMask whatIsGround;
     public LayerMask whatIsWall;
@@ -70,9 +71,12 @@ public class PlayerStateBase
                     sm.EnterState<PlayerSwingState>(i);
                 }
             }
-
         }
 
+        if (Input.GetKeyDown(attackKey) && sm.curState.GetType() != typeof(PlayerWallRunningState))
+        {
+            sm.EnterState<PlayerAttackState>();
+        }
     }//没有继承MonoBehaviour，不会每帧执行，由StateMachine统一管理
 
     public virtual void FixedUpdate() { }//没有继承MonoBehaviour，不会每帧执行，由MonoManager统一管理

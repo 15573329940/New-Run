@@ -18,7 +18,7 @@ public class PlayerStateMachine : MonoBehaviour
     public float playerHeight = 2f;
     [SerializeField]
     public String curStateType;//当前状态类型
-    private PlayerStateBase curState;//当前状态
+    public PlayerStateBase curState;//当前状态
     public int index = -1;//当前状态索引
     private Dictionary<Type, PlayerStateBase> stateDic = new Dictionary<Type, PlayerStateBase>();//状态字典
     private Dictionary<Type, float> stateCoolTimer = new Dictionary<Type, float>();//状态冷却时间字典
