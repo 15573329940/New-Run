@@ -10,6 +10,9 @@ using System.Linq;
 /// </summary>
 public class PlayerStateMachine : MonoBehaviour
 {
+    [HideInInspector]
+    public Transform grabberHand;
+
     public PlayerCam cam;
     public Transform player;
     public Transform orientation;
@@ -18,7 +21,7 @@ public class PlayerStateMachine : MonoBehaviour
     public float playerHeight = 2f;
     [SerializeField]
     public String curStateType;//当前状态类型
-    private PlayerStateBase curState;//当前状态
+    public PlayerStateBase curState;//当前状态
     public int index = -1;//当前状态索引
     private Dictionary<Type, PlayerStateBase> stateDic = new Dictionary<Type, PlayerStateBase>();//状态字典
     private Dictionary<Type, float> stateCoolTimer = new Dictionary<Type, float>();//状态冷却时间字典
@@ -127,5 +130,33 @@ public class PlayerStateMachine : MonoBehaviour
     {
         
         EnterState<PlayerDieState>();
+    }
+
+    /// <summary>
+    /// 玩家受到伤害
+    /// </summary>
+    public void TakeDamage(int amount)
+    {
+        pd.health -= amount;
+        Debug.Log("玩家受到了 " + amount + " 点伤害！剩余生命: " + pd.health);
+
+        if (pd.health <= 0)
+        {
+            Die();
+        }
+        else
+        {
+            EnterState<PlayerDamagedState>();
+        }
+    }
+
+    /// <summary>
+    /// 玩家被抓住了
+    /// </summary>
+    public void BeGrabbed(Transform grabberHand)
+    {
+        this.grabberHand = grabberHand;
+        Debug.Log("玩家被抓住了！");
+        EnterState<PlayerGrabbedState>();
     }
 }
