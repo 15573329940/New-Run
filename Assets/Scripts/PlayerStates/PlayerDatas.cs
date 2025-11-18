@@ -51,6 +51,11 @@ public class PlayerDatas : MonoBehaviour
     public List<LineRenderer> lrs;
     public LayerMask whatIsGrappleable;
     public ParticleSystem dieParticles;
+    [Header("Spray")]
+    public float sprayForce = 500f;
+    public float sprayCooldown = 2f;
+    [HideInInspector]
+    public float lastSprayTime = -100f;
     #endregion
     
 }
