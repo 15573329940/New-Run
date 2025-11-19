@@ -59,6 +59,10 @@ public class PlayerSwingState : PlayerStateBase
         base.Update();
         CheckKeyUp();
         CheckKeyDown();
+        if (Input.GetKeyDown(shiftKey))
+        {
+            Spray();
+        }
     }
     public override void LateUpdate()
     {
@@ -127,5 +131,14 @@ public class PlayerSwingState : PlayerStateBase
         yield return new WaitForSeconds(delay);
         
         isShinking[i] = true;
+    }
+
+    void Spray()
+    {
+        if (Time.time - pd.lastSprayTime > pd.sprayCooldown)
+        {
+            rb.AddForce(cam.transform.forward * pd.sprayForce, ForceMode.Impulse);
+            pd.lastSprayTime = Time.time;
+        }
     }
 }

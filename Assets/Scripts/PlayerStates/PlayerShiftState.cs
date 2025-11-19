@@ -19,7 +19,24 @@ public class PlayerShiftState : PlayerStateBase
             forward = false;
             rb.AddForce(-player.forward * pd.shiftSpeed, ForceMode.Impulse);
         }
+
+        sm.StartCoroutine(ShiftFinished());
     }
+
+    private System.Collections.IEnumerator ShiftFinished()
+    {
+        yield return new WaitForSeconds(pd.shiftTime);
+
+        if (IsGround())
+        {
+            sm.EnterState<PlayerIdleState>();
+        }
+        else
+        {
+            sm.EnterState<PlayerAirState>();
+        }
+    }
+
     public override void FixedUpdate()
     {
         base.FixedUpdate();
