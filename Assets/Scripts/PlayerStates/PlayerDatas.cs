@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class PlayerDatas : MonoBehaviour
 {
+    [Header("Stats")]
+    public int health = 100;
+
     public Animator animator;
     public Transform footPos;
     public float checkGroundHeight = 1.2f;
@@ -51,6 +54,11 @@ public class PlayerDatas : MonoBehaviour
     public List<LineRenderer> lrs;
     public LayerMask whatIsGrappleable;
     public ParticleSystem dieParticles;
+    [Header("Spray")]
+    public float sprayForce = 500f;
+    public float sprayCooldown = 2f;
+    [HideInInspector]
+    public float lastSprayTime = -100f;
     #endregion
     
 }

@@ -16,6 +16,7 @@ public class PlayerStateBase
     public float verticalInput;
     public KeyCode jumpKey = KeyCode.Space;
     public KeyCode shiftKey = KeyCode.LeftShift;
+    public KeyCode attackKey = KeyCode.Mouse0;
     public List<KeyCode> swingKeys = new List<KeyCode>() { KeyCode.Q, KeyCode.E };
     public LayerMask whatIsGround;
     public LayerMask whatIsWall;
@@ -24,6 +25,7 @@ public class PlayerStateBase
     public List<bool> hookActive;
     public int index = -1;//当前状态索引
     bool hitFound = false;
+    private float lastGrappleHitTime;
     public float rayRadius;
     public bool hasInput;
     #endregion
@@ -70,9 +72,12 @@ public class PlayerStateBase
                     sm.EnterState<PlayerSwingState>(i);
                 }
             }
-
         }
 
+        if (Input.GetKeyDown(attackKey) && sm.curState.GetType() != typeof(PlayerWallRunningState))
+        {
+            sm.EnterState<PlayerAttackState>();
+        }
     }//没有继承MonoBehaviour，不会每帧执行，由StateMachine统一管理
 
     public virtual void FixedUpdate() { }//没有继承MonoBehaviour，不会每帧执行，由MonoManager统一管理
@@ -109,13 +114,26 @@ public class PlayerStateBase
                 {
                     targetPoint = hit.point;
                     hitFound = true;
-                    CursorAimer.SetCursorColor(new Color(1, 0, 0, 0.5f));
                     break; // 找到就停
                 }
             }
 
-            // 如果都没命中，用中心射线的最大距离终点
-            if (!hitFound)
+            if (hitFound)
+            {
+                lastGrappleHitTime = Time.time;
+            }
+
+            // 如果在0.1秒内曾命中过，则保持准星为红色
+            if (Time.time - lastGrappleHitTime < 0.1f)
+            {
+                CursorAimer.SetCursorColor(new Color(1, 0, 0, 0.5f));
+                if (!hitFound) // 如果当前帧未命中，我们需要重新计算目标点用于显示
+                {
+                    Ray centerRay = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+                    targetPoint = centerRay.origin + centerRay.direction * pd.maxHookDistance;
+                }
+            }
+            else
             {
                 CursorAimer.SetCursorColor(new Color(1, 1, 1, 0.5f));
                 Ray centerRay = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
@@ -147,5 +165,21 @@ public class PlayerStateBase
         bool isInTargetState = currentState.IsName(targetAnimationName);
         return isInTargetState;
         // 若需要退出动画，可在其他逻辑中设置参数为false
+    }
+
+    public virtual void HandleCollisionStay(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Titan"))
+        {
+            // For non-swinging states, inherit the Titan's velocity to stay attached.
+            if (sm.curState.GetType() != typeof(PlayerSwingState))
+            {
+                Rigidbody titanRb = collision.gameObject.GetComponent<Rigidbody>();
+                if (titanRb != null)
+                {
+                    rb.velocity += titanRb.velocity * Time.deltaTime;
+                }
+            }
+        }
     }
 }

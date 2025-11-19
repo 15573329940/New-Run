@@ -59,6 +59,10 @@ public class PlayerSwingState : PlayerStateBase
         base.Update();
         CheckKeyUp();
         CheckKeyDown();
+        if (Input.GetKeyDown(shiftKey))
+        {
+            Spray();
+        }
     }
     public override void LateUpdate()
     {
@@ -127,5 +131,27 @@ public class PlayerSwingState : PlayerStateBase
         yield return new WaitForSeconds(delay);
         
         isShinking[i] = true;
+    }
+
+    void Spray()
+    {
+        if (Time.time - pd.lastSprayTime > pd.sprayCooldown)
+        {
+            rb.AddForce(cam.transform.forward * pd.sprayForce, ForceMode.Impulse);
+            pd.lastSprayTime = Time.time;
+        }
+    }
+
+    public override void HandleCollisionStay(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Titan"))
+        {
+            // Project player's velocity onto the titan's surface to slide along it.
+            ContactPoint contact = collision.contacts[0];
+            Vector3 projectedVelocity = Vector3.ProjectOnPlane(rb.velocity, contact.normal);
+
+            // Apply the projected velocity
+            rb.velocity = projectedVelocity;
+        }
     }
 }
