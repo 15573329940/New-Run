@@ -346,7 +346,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Amarture_VER2|attack_anti_AE_high_r
+  m_Name: RHighGrab
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:
@@ -914,7 +914,8 @@ AnimatorState:
   m_Name: Amarture_VER2|idle
   m_Speed: 1
   m_CycleOffset: 0
-  m_Transitions: []
+  m_Transitions:
+  - {fileID: 2033020050818627134}
   m_StateMachineBehaviours: []
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
@@ -1199,7 +1200,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Amarture_VER2|attack_anti_AE_low_l
+  m_Name: LLowGrab
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:
@@ -1451,6 +1452,31 @@ AnimatorState:
   m_MirrorParameter: 
   m_CycleOffsetParameter: 
   m_TimeParameter: 
+--- !u!1101 &-2706155243565853029
+AnimatorStateTransition:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_Conditions:
+  - m_ConditionMode: 2
+    m_ConditionEvent: isChasing
+    m_EventTreshold: 0
+  m_DstStateMachine: {fileID: 0}
+  m_DstState: {fileID: -5615232012033886673}
+  m_Solo: 0
+  m_Mute: 0
+  m_IsExit: 0
+  serializedVersion: 3
+  m_TransitionDuration: 0.25
+  m_TransitionOffset: 0
+  m_ExitTime: 0.875
+  m_HasExitTime: 0
+  m_HasFixedDuration: 1
+  m_InterruptionSource: 0
+  m_OrderedInterruption: 1
+  m_CanTransitionToSelf: 1
 --- !u!1102 &-2546892825712658311
 AnimatorState:
   serializedVersion: 6
@@ -1556,7 +1582,7 @@ AnimatorStateMachine:
     m_Position: {x: 368.32428, y: 569.7657, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 805980123346179112}
-    m_Position: {x: 1060, y: 170, z: 0}
+    m_Position: {x: 1060, y: 130, z: 0}
   - serializedVersion: 1
     m_State: {fileID: -8265017102018339384}
     m_Position: {x: 1060, y: 200, z: 0}
@@ -1938,7 +1964,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Amarture_VER2|attack_anti_AE_r
+  m_Name: RMiddleGrab
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:
@@ -2093,7 +2119,13 @@ AnimatorController:
   m_PrefabAsset: {fileID: 0}
   m_Name: BasicTitanAnimationController
   serializedVersion: 5
-  m_AnimatorParameters: []
+  m_AnimatorParameters:
+  - m_Name: isChasing
+    m_Type: 4
+    m_DefaultFloat: 0
+    m_DefaultInt: 0
+    m_DefaultBool: 0
+    m_Controller: {fileID: 9100000}
   m_AnimatorLayers:
   - serializedVersion: 5
     m_Name: Base Layer
@@ -2218,7 +2250,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Amarture_VER2|attack_anti_AE_high_l
+  m_Name: LHighGrab
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:
@@ -2395,6 +2427,31 @@ AnimatorState:
   m_MirrorParameter: 
   m_CycleOffsetParameter: 
   m_TimeParameter: 
+--- !u!1101 &2033020050818627134
+AnimatorStateTransition:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_Conditions:
+  - m_ConditionMode: 1
+    m_ConditionEvent: isChasing
+    m_EventTreshold: 0
+  m_DstStateMachine: {fileID: 0}
+  m_DstState: {fileID: 7475140004723269949}
+  m_Solo: 0
+  m_Mute: 0
+  m_IsExit: 0
+  serializedVersion: 3
+  m_TransitionDuration: 0.25
+  m_TransitionOffset: 0
+  m_ExitTime: 0.85
+  m_HasExitTime: 0
+  m_HasFixedDuration: 1
+  m_InterruptionSource: 0
+  m_OrderedInterruption: 1
+  m_CanTransitionToSelf: 1
 --- !u!1101 &2184969816254687480
 AnimatorStateTransition:
   m_ObjectHideFlags: 1
@@ -2759,7 +2816,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Amarture_VER2|attack_anti_AE_low_r
+  m_Name: RLowGrab
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:
@@ -3093,7 +3150,8 @@ AnimatorState:
   m_Name: Amarture_VER2|run_walk
   m_Speed: 1
   m_CycleOffset: 0
-  m_Transitions: []
+  m_Transitions:
+  - {fileID: -2706155243565853029}
   m_StateMachineBehaviours: []
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
@@ -3268,7 +3326,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Amarture_VER2|attack_anti_AE_l
+  m_Name: LMiddleGrab
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions:

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48d057cc82be9e84484722a7fa2506fe, type: 3}
+  m_Name: RHighGrab
+  m_EditorClassIdentifier: 
+  attackType: 6
+  Damage: 10
+  Cooldown: 2.5
+  animationLength: 2
+  Keyframes:
+  - Time: 0.6
+    LocalPosition: {x: 8.793115, y: 2.3834527, z: -2.3299122}
+    Radius: 0.16
+  - Time: 0.70000005
+    LocalPosition: {x: 2.6969266, y: 5.001319, z: -7.9675775}
+    Radius: 0.16
+  - Time: 0.8000001
+    LocalPosition: {x: -0.9826999, y: 7.9855356, z: -9.225878}
+    Radius: 0.16
+  - Time: 0.9000001
+    LocalPosition: {x: -3.1662755, y: 7.338032, z: -8.7303095}
+    Radius: 0.16

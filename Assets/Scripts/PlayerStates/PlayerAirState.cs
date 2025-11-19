@@ -5,10 +5,14 @@ using UnityEngine;
 public class PlayerAirState : PlayerStateBase
 {
     // Start is called before the first frame update
+    bool canLand;
     public override void Enter()
-    {
+    {   
+        canLand = false;
         rb.useGravity = true;
         rb.drag = pd.airDrag;
+
+        TimerPool.Instance.GetTimer(0.3f, () => { canLand = true; });
     }
     public override void FixedUpdate()
     {
@@ -21,7 +25,7 @@ public class PlayerAirState : PlayerStateBase
     public override void Update()
     {
         base.Update();
-        if (IsGround())
+        if (IsGround() && canLand)
         {
             ani.SetBool("isAir", false);
             sm.EnterState<PlayerWalkState>();

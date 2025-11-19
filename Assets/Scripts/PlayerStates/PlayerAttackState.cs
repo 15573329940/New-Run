@@ -20,11 +20,19 @@ public class PlayerAttackState : PlayerStateBase
 
         sm.StartCoroutine(AttackFinished());
     }
-
+    public override void Update()
+    {
+        base.Update();
+        if(Input.GetKeyDown(shiftKey))
+        {
+            ani.SetTrigger("shift");
+            sm.EnterState<PlayerShiftState>();
+        }
+    }
     private void FindTarget()
     {
         GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-        float closestDistance = float.MaxValue;
+        float closestDistance = pd.detectRange;
         GameObject closestEnemy = null;
 
         foreach (GameObject enemy in enemies)
@@ -50,14 +58,25 @@ public class PlayerAttackState : PlayerStateBase
 
     private System.Collections.IEnumerator AttackFinished()
     {
+        yield return null; // Wait one frame to ensure the animation state is updated
         yield return new WaitForSeconds(ani.GetCurrentAnimatorStateInfo(0).length);
 
         if (IsGround())
         {
-            sm.EnterState<PlayerIdleState>();
+            if(hasInput)
+            {
+                ani.CrossFadeInFixedTime("RunTree", 0.2f);
+                sm.EnterState<PlayerWalkState>();
+            }
+            else
+            {
+                ani.CrossFadeInFixedTime("Idle", 0.2f);
+                sm.EnterState<PlayerIdleState>();
+            }
         }
-        else
+        else 
         {
+            ani.CrossFadeInFixedTime("Fall", 0.2f);
             sm.EnterState<PlayerAirState>();
         }
     }

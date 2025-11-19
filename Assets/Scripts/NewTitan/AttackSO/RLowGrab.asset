@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48d057cc82be9e84484722a7fa2506fe, type: 3}
+  m_Name: RLowGrab
+  m_EditorClassIdentifier: 
+  attackType: 8
+  Damage: 10
+  Cooldown: 2.5
+  animationLength: 2
+  Keyframes:
+  - Time: 0.6
+    LocalPosition: {x: 0.77106166, y: 8.64531, z: -6.1580486}
+    Radius: 0.16
+  - Time: 0.70000005
+    LocalPosition: {x: 0.17310715, y: 10.225159, z: 7.865184}
+    Radius: 0.16
+  - Time: 0.8000001
+    LocalPosition: {x: -3.4868584, y: 10.240529, z: 6.230052}
+    Radius: 0.16
+  - Time: 0.9000001
+    LocalPosition: {x: -3.770378, y: 9.381351, z: 3.570526}
+    Radius: 0.16

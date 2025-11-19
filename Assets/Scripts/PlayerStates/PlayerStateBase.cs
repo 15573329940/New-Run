@@ -27,6 +27,7 @@ public class PlayerStateBase
     bool hitFound = false;
     public float rayRadius;
     public bool hasInput;
+    float lasthitTime = 0f; 
     #endregion
     public virtual void Init()
     {
@@ -114,6 +115,7 @@ public class PlayerStateBase
                     targetPoint = hit.point;
                     hitFound = true;
                     CursorAimer.SetCursorColor(new Color(1, 0, 0, 0.5f));
+                    lasthitTime = Time.time;
                     break; // 找到就停
                 }
             }
@@ -121,7 +123,11 @@ public class PlayerStateBase
             // 如果都没命中，用中心射线的最大距离终点
             if (!hitFound)
             {
-                CursorAimer.SetCursorColor(new Color(1, 1, 1, 0.5f));
+                if(Time.time - lasthitTime > 0.1f)
+                {
+                    CursorAimer.SetCursorColor(new Color(1, 1, 1, 0.5f));
+                }
+                
                 Ray centerRay = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
                 targetPoint = centerRay.origin + centerRay.direction * pd.maxHookDistance;
             }

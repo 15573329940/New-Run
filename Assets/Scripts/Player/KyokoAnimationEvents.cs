@@ -6,6 +6,7 @@ using UnityEngine;
 public class KyokoAnimationEvents : MonoBehaviour
 {
     public PlayerStateMachine sm;
+    public PlayerDatas pd;
     void Start()
     {
         sm =GetComponentInParent<PlayerStateMachine>();

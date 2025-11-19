@@ -9,6 +9,7 @@ public class PlayerShiftState : PlayerStateBase
     public override void Enter()
     {
         base.Enter();
+        rb.drag = pd.shiftDrag;
         if (hasInput)
         {
             forward = true;
@@ -39,5 +40,9 @@ public class PlayerShiftState : PlayerStateBase
     public override void Exit()
     {
         base.Exit();
+        if (!hasInput)
+        {
+            rb.velocity*=0.5f;
+        }
     }
 }

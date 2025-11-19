@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48d057cc82be9e84484722a7fa2506fe, type: 3}
+  m_Name: LHighGrab
+  m_EditorClassIdentifier: 
+  attackType: 3
+  Damage: 10
+  Cooldown: 2.5
+  animationLength: 2
+  Keyframes:
+  - Time: 0.6
+    LocalPosition: {x: 1.2904594, y: 11.25712, z: -7.067145}
+    Radius: 0.16
+  - Time: 0.70000005
+    LocalPosition: {x: 0.9014404, y: 16.903252, z: 5.155829}
+    Radius: 0.16
+  - Time: 0.8000001
+    LocalPosition: {x: 3.1823165, y: 14.442183, z: 5.070323}
+    Radius: 0.16

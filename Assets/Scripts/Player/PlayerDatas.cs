@@ -6,17 +6,24 @@ public class PlayerDatas : MonoBehaviour
 {
     public Animator animator;
     public Transform footPos;
-    public float checkGroundHeight = 1.2f;
+    [Header("AttackState")]
+    public float attackRange = 2.0f;
+    public float detectRange=3.0f;
+    public float attackTime=1f;
+    public Collider knifeCollider;
+    public float attackForce = 300f;
     #region WalkState
     [Header("WalkState")]
+    public float checkGroundHeight = 1.2f;
     public float walkSpeed = 100.0f;
     public float groundDrag = 6f;
     public float jumpForce = 30f;
     #endregion
     #region ShiftState
     [Header("ShiftState")]
-    public float shiftSpeed = 200f;
-    public float shiftTime = 0.5f;
+    public float shiftSpeed = 50f;
+    public float shiftDrag = 2f;
+    public float shiftTime = 1f;
     #endregion
     #region AirState
     [Header("AirState")]

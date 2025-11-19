@@ -141,4 +141,9 @@ public class PlayerSwingState : PlayerStateBase
             pd.lastSprayTime = Time.time;
         }
     }
+    void Attack()
+    {
+        rb.velocity = Vector3.zero;
+        rb.AddForce(cam.transform.forward * pd.attackForce, ForceMode.Impulse);
+    }
 }
