@@ -7959,6 +7959,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 1055757101}
+  headBone: {fileID: 1496950299}
+  neckBone: {fileID: 1999282299}
   attackDecisionZones:
   - {fileID: 1784608887}
   - {fileID: 1341563569}
@@ -7980,13 +7982,19 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5eb4bca717cce644db4fe2356eb6bd37, type: 2}
   - {fileID: 11400000, guid: f9ec05a152b04224b8c24804f529a44c, type: 2}
   - {fileID: 11400000, guid: 401967d3ce7d9b749b58af7c25ebfa70, type: 2}
-  useSmartAttack: 1
-  decisionInterval: 0.25
-  AttackSpeed: 1
   Size: 1
+  AttackSpeed: 1
   hurtTime: 4
+  decisionInterval: 0.25
+  useSmartAttack: 1
+  maxHeadAngleX: 60
+  maxHeadAngleY: 40
+  chaseRepathInterval: {x: 2, y: 5}
+  attackWaitTime: 0.5
+  interceptFactor: 0.6
   hurtAnimationName: Hurt
   deathAnimationName: Death
+  runAnimationName: Walk
   currentState: 0
 --- !u!4 &359428489 stripped
 Transform:
@@ -13930,17 +13938,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 0}
+  headBone: {fileID: 0}
+  neckBone: {fileID: 0}
   attackDecisionZones: []
   allAttackHitboxes:
   - {fileID: 0}
   attackInfos: []
-  useSmartAttack: 1
-  decisionInterval: 0.25
-  AttackSpeed: 1
   Size: 1
+  AttackSpeed: 1
   hurtTime: 4
+  decisionInterval: 0.25
+  useSmartAttack: 1
+  maxHeadAngleX: 60
+  maxHeadAngleY: 40
+  chaseRepathInterval: {x: 2, y: 5}
+  attackWaitTime: 0.5
+  interceptFactor: 0.6
   hurtAnimationName: Hurt
   deathAnimationName: Death
+  runAnimationName: Walk
   currentState: 0
 --- !u!1 &1263307466 stripped
 GameObject:
@@ -23629,6 +23645,12 @@ MonoBehaviour:
   boneID: 6
   ikEnabled: 0
   ikWeight: 1
+--- !u!4 &1496950299 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1006761380201851798, guid: 1b65e43d9ac5f4c4f8cae425e46696b2,
+    type: 3}
+  m_PrefabInstance: {fileID: 358238770}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1505404701 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -7397885050697495057, guid: 4b705e0a0ccdf2746b0edc2ded3dc4fc,
@@ -27604,6 +27626,12 @@ MonoBehaviour:
   boneID: 109
   ikEnabled: 0
   ikWeight: 1
+--- !u!4 &1999282299 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7048774094603945637, guid: 1b65e43d9ac5f4c4f8cae425e46696b2,
+    type: 3}
+  m_PrefabInstance: {fileID: 358238770}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2000563813 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5210423541549666361, guid: 4b705e0a0ccdf2746b0edc2ded3dc4fc,

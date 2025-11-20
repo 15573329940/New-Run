@@ -21,17 +21,18 @@ public class TitanAttackSO : ScriptableObject
     /// 预测此攻击是否击中
     /// </summary>
     public bool CheckSmartAttack(Transform attackerTransform, Vector3 targetCurrentPos,
-                                 Vector3 targetVelocity, float attackSpeed, float attackerSize)
+                                 Vector3 targetVelocity, Vector3 targetAcceleration, // <--- 1. 这里也要加参数
+                                 float attackSpeed, float attackerSize)
     {
-        if (!HasKeyframes) 
-            return false; // 没有数据，无法预测
+        if (!HasKeyframes) return false;
 
         foreach (var keyframe in Keyframes)
         {
+            // 2. 这里调用 KeyFrame 的新方法，把加速度传进去
             if (keyframe.CheckCollision(attackerTransform, targetCurrentPos,
-                                       targetVelocity, attackSpeed, attackerSize))
+                                       targetVelocity, targetAcceleration, // <--- 传入加速度
+                                       attackSpeed, attackerSize))
             {
-                // 只要有任何一个关键帧能"预测"到碰撞，就返回 true
                 return true;
             }
         }

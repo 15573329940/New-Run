@@ -1,88 +1,132 @@
 using UnityEngine;
 using UnityEngine.AI;
-using System.Collections; // 1. 导入协程所需的库
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
 public class TitanController : MonoBehaviour
 {
-    [Header("核心组件")]
-    public Transform player; // 拖入玩家对象
-    private NavMeshAgent agent;
-    private Animator animator;
+    #region --- 配置参数 ---
+    [Header("核心引用")]
+    public Transform player;
+    public Transform headBone; // 必须赋值
+    public Transform neckBone; // 必须赋值
+    
+    [Header("AI 决策与范围")]
+    public List<AttackTriggerZone> attackDecisionZones;
+    public AttackHitbox[] allAttackHitboxes;
+    public List<TitanAttackSO> attackInfos;
 
-    [Header("AI 决策 (拖入所有子对象)")]
-    public List<AttackTriggerZone> attackDecisionZones; // 拖入所有 "决策区"
-    public AttackHitbox[] allAttackHitboxes; // 拖入所有 "攻击判定" Hitbox
+    [Header("AI 基础参数")]
+    public float Size = 1.0f;
+    public float AttackSpeed = 1.0f;
+    public float hurtTime = 4.0f;    // 受伤硬直时间
+    [Min(0.1f)] public float decisionInterval = 0.25f; // 决策频率
+    public bool useSmartAttack = true;
 
-    [Header("AI 攻击数据 (拖入所有资产)")]
-    public List<TitanAttackSO> attackInfos; // 拖入所有 "Attack Info" 资产
+    [Header("生物感参数 (AoTTG Style)")]
+    [Tooltip("头部追踪最大水平/垂直角度")]
+    public float maxHeadAngleX = 60f;
+    public float maxHeadAngleY = 40f;
+    [Tooltip("重新寻路的时间间隔 (模拟思考)")]
+    public Vector2 chaseRepathInterval = new Vector2(2.0f, 5.0f);
+    [Tooltip("攻击前的蓄力/确认时间")]
+    public float attackWaitTime = 0.5f;
+    [Tooltip("追逐时预判玩家走位的权重 (0=纯随机, 1=强预判)")]
+    [Range(0f, 1f)] public float interceptFactor = 0.6f;
 
-    [Header("AI 行为参数")]
-    public bool useSmartAttack = true; // 是否启用智能预测
-    [Min(0.1f)]
-    public float decisionInterval = 0.25f; // AI 决策间隔 (性能优化)
-    public float AttackSpeed = 1.0f; // 巨人攻击速度
-    public float Size = 1.0f;        // 巨人尺寸
-    public float hurtTime = 4.0f;    // 受伤动画时间
+    [Header("动画状态名")]
+    public string hurtAnimationName = "Hurt";
+    public string deathAnimationName = "Death";
+    public string runAnimationName = "Walk";
+    #endregion
 
-    [Header("Animation Clip Names")]
-    [Tooltip("Animator中的受伤动画片段的 *确切* 名字")]
-    public string hurtAnimationName = "Hurt"; // 确保这个名字和你的动画剪辑名字一致
-    [Tooltip("Animator中的死亡动画片段的 *确切* 名字")]
-    public string deathAnimationName = "Death"; // 确保这个名字和你的动画剪辑名字一致
-
-    // --- 状态机 ---
+    #region --- 内部状态变量 ---
+    public enum TitanState { Idle, Chasing, WaitAttack, Attacking, Turning, Hurt, Dead }
+    [Header("当前状态 (Debug)")]
     public TitanState currentState;
-    private float decisionTimer;
-    private Dictionary<string, AttackHitbox> hitboxCache; // 性能优化
 
-    // --- 玩家速度追踪 ---
-    private Vector3 lastPlayerPos;
-    private Vector3 playerVelocity;
+    // 组件缓存
+    private NavMeshAgent _agent;
+    private Animator _animator;
+    private Dictionary<string, AttackHitbox> _hitboxCache;
 
-    // --- 临时列表 (性能优化) ---
-    private List<TitanAttackType> potentialAttacks = new List<TitanAttackType>();
-    private List<TitanAttackType> validAttacks = new List<TitanAttackType>();
-    private TitanAttackType currentAttackType = TitanAttackType.None;
+    // 逻辑计时器与缓存
+    private float _decisionTimer;
+    private float _stateTimeLeft;
+    private float _currentRandomMoveAngle;
+    private Quaternion _targetTurnRotation;
+    private float _turnSpeed;
+    private TitanAttackType _currentAttackType = TitanAttackType.None;
 
-    // --- 自动化协程 ---
-    // 2. 缓存 *所有* 动画剪辑的长度 (按名字)
-    // 3. 引用 *当前* 正在运行的状态协程
+    // 物理与预测
+    private Queue<Vector3> _playerPosHistory = new Queue<Vector3>(3);
+    private Vector3 _calculatedVelocity;     // 统一使用这个速度
+    private Vector3 _calculatedAcceleration; // 统一使用这个加速度
+    
+    // 头部追踪缓存
+    private Quaternion _oldHeadRotation;
+
+    // 协程引用
     private Coroutine _activeStateCoroutine = null;
+    private Coroutine _hitboxCoroutine = null; // 如果你有Hitbox自动协程的话
+    #endregion
 
+    #region --- Unity 生命周期 ---
 
-    #region Unity 生命周期函数
     void Awake()
     {
-        agent = GetComponent<NavMeshAgent>();
-        animator = GetComponent<Animator>();
+        _agent = GetComponent<NavMeshAgent>();
+        _animator = GetComponent<Animator>();
+        
+        // 防止 NavMesh 滑步，逻辑与位移分离
+        _agent.updatePosition = false;
+        _agent.updateRotation = false;
+
         if (player == null)
             player = GameObject.FindGameObjectWithTag("Player").transform;
 
         // 初始化 Hitbox 缓存
-        hitboxCache = new Dictionary<string, AttackHitbox>();
+        _hitboxCache = new Dictionary<string, AttackHitbox>();
         foreach (var hitbox in allAttackHitboxes)
         {
-            hitboxCache.TryAdd(hitbox.gameObject.name, hitbox);
+            if (!_hitboxCache.ContainsKey(hitbox.gameObject.name))
+                _hitboxCache.Add(hitbox.gameObject.name, hitbox);
         }
     }
 
     void Start()
     {
-        lastPlayerPos = player.position;
         currentState = TitanState.Idle;
+        
+        // 自动参数初始化
+        if (Size == 1.0f) Size = transform.localScale.x;
+        if (AttackSpeed <= 0) AttackSpeed = 1.0f;
+        if (headBone) _oldHeadRotation = headBone.rotation;
+
+        ResetChaseLogic(); // 初始决策
+    }
+
+    void FixedUpdate()
+    {
+        if (player == null || currentState == TitanState.Dead) return;
+        
+        // 1. 物理计算必须在 FixedUpdate (保证 dt 恒定)
+        RecordPlayerPhysics();
+
+        // 2. 同步 Agent 位置
+        _agent.nextPosition = transform.position;
     }
 
     void Update()
     {
         if (player == null || currentState == TitanState.Dead)
         {
-            if (agent.isOnNavMesh) agent.isStopped = true;
+            if(_agent.enabled) _agent.isStopped = true;
             return;
         }
-        UpdatePlayerVelocity();
-        // 核心状态机... (保持不变)
+
+        // 状态机逻辑
         switch (currentState)
         {
             case TitanState.Idle:
@@ -90,63 +134,222 @@ public class TitanController : MonoBehaviour
                 break;
 
             case TitanState.Chasing:
-                agent.isStopped = false;
-                agent.SetDestination(player.position);
-                animator.SetBool("isChasing", true);
+                HandleChasing();
+                break;
 
-                decisionTimer -= Time.deltaTime;
-                if (decisionTimer <= 0)
-                {
-                    DecideAttack();
-                    decisionTimer = decisionInterval;
-                }
+            case TitanState.WaitAttack:
+                HandleWaitAttack();
+                break;
+
+            case TitanState.Turning:
+                HandleTurning();
                 break;
 
             case TitanState.Attacking:
-                agent.isStopped = true;
-                animator.SetBool("isChasing", false);
-                break;
-
             case TitanState.Hurt:
-                agent.isStopped = true;
-                animator.SetBool("isChasing", false);
+                _agent.isStopped = true;
                 break;
         }
     }
+
+    void LateUpdate()
+    {
+        if (currentState == TitanState.Dead || headBone == null || player == null) return;
+
+        // 允许头部追踪的状态
+        bool canTrack = currentState == TitanState.Idle || 
+                        currentState == TitanState.Chasing || 
+                        currentState == TitanState.WaitAttack || 
+                        currentState == TitanState.Turning;
+
+        if (canTrack)
+        {
+            LateUpdateHead(player.position);
+        }
+    }
+
     #endregion
 
-    #region AI 决策逻辑
+    #region --- AI 核心逻辑 ---
+
+    public void InitializeTitan(float sizeScale, bool isAbnormal)
+    {
+        this.Size = sizeScale;
+        transform.localScale = Vector3.one * sizeScale;
+
+        // 根据体型调整攻速：体型越大越慢，奇行种更快
+        float baseSpeed = 1.0f;
+        float sizeFactor = Mathf.Clamp(15.0f / sizeScale, 0.5f, 2.0f);
+        if (isAbnormal) baseSpeed *= 1.5f;
+
+        this.AttackSpeed = baseSpeed * sizeFactor;
+        _animator.speed = this.AttackSpeed;
+    }
 
     void LookForPlayer()
     {
-        if (Vector3.Distance(transform.position, player.position) < agent.stoppingDistance + 20f)
+        if (Vector3.Distance(transform.position, player.position) < _agent.stoppingDistance + 100f)
         {
             currentState = TitanState.Chasing;
+            ResetChaseLogic();
+        }
+    }
+
+    // 【改进】带预判倾向的重置逻辑
+    void ResetChaseLogic()
+    {
+        _stateTimeLeft = Random.Range(chaseRepathInterval.x, chaseRepathInterval.y);
+
+        // --- 预判逻辑 ---
+        // 1. 计算玩家相对于泰坦的方位
+        Vector3 dirToPlayer = (player.position - transform.position).normalized;
+        // 2. 获取玩家的移动方向 (归一化)
+        Vector3 playerDir = _calculatedVelocity.normalized;
+
+        float biasAngle = 0f;
+
+        // 只有当玩家在移动时才预判
+        if (_calculatedVelocity.sqrMagnitude > 4f) // 速度大于2m/s才算跑
+        {
+            // 计算玩家移动方向相对于泰坦视线的夹角
+            // 结果 > 0 说明玩家在往泰坦的右侧跑，< 0 说明在往左侧跑
+            float relativeRunAngle = Vector3.SignedAngle(dirToPlayer, playerDir, Vector3.up);
+
+            // 如果玩家往右跑，泰坦也往右偏 (拦截)
+            biasAngle = Mathf.Clamp(relativeRunAngle * interceptFactor, -45f, 45f);
+        }
+
+        // 混合：预判偏差 + 少量随机扰动
+        _currentRandomMoveAngle = Mathf.Clamp(biasAngle + Random.Range(-20f, 20f), -60f, 60f);
+    }
+
+    void HandleChasing()
+    {
+        _agent.isStopped = false;
+        _animator.SetBool("isChasing", true);
+        _stateTimeLeft -= Time.deltaTime;
+
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        // 尝试进入攻击前摇
+        if (dist < 30f && CanAttackAny())
+        {
+            currentState = TitanState.WaitAttack;
+            _stateTimeLeft = attackWaitTime;
+            _agent.isStopped = true;
+            _animator.SetBool("isChasing", false);
+            return;
+        }
+
+        // 定时重置寻路
+        if (_stateTimeLeft <= 0 || !_agent.hasPath)
+        {
+            _agent.SetDestination(player.position);
+            ResetChaseLogic();
+        }
+
+        // 移动控制
+        if (_agent.hasPath)
+        {
+            Vector3 desiredDir = (_agent.steeringTarget - transform.position);
+            desiredDir.y = 0;
+
+            // 施加预判/随机偏移
+            Vector3 finalDir = Quaternion.Euler(0, _currentRandomMoveAngle, 0) * desiredDir.normalized;
+
+            // 转身检测
+            if (Vector3.Angle(transform.forward, finalDir) > 45f)
+            {
+                TryEnterTurnState();
+            }
+            else if (finalDir != Vector3.zero)
+            {
+                // 平滑转向
+                Quaternion targetRot = Quaternion.LookRotation(finalDir);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, 120f * Time.deltaTime);
+            }
+
+            // 移动位置
+            transform.position += transform.forward * _agent.speed * Time.deltaTime;
+        }
+    }
+
+    bool CanAttackAny() { return true; } // 简化的检查
+
+    void HandleWaitAttack()
+    {
+        _stateTimeLeft -= Time.deltaTime;
+        
+        // 锁定玩家朝向
+        //Vector3 dirToPlayer = (player.position - transform.position).normalized;
+        //dirToPlayer.y = 0;
+        //if(dirToPlayer != Vector3.zero)
+            //transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(dirToPlayer), 200f * Time.deltaTime);
+
+        if (_stateTimeLeft <= 0)
+        {
+            DecideAttack();
+        }
+    }
+
+    void TryEnterTurnState()
+    {
+        Vector3 dirToPlayer = (player.position - transform.position).normalized;
+        dirToPlayer.y = 0;
+        
+        float angle = Vector3.SignedAngle(transform.forward, dirToPlayer, Vector3.up);
+
+        currentState = TitanState.Turning;
+        _targetTurnRotation = Quaternion.LookRotation(dirToPlayer);
+
+        string turnAnim = angle > 0 ? "Turn90R" : "Turn90L";
+        _animator.CrossFade(turnAnim, 0.2f);
+
+        // 动态计算旋转速度：假设转身动画基准为1.5s，转90度
+        float animLength = 1.5f; 
+        _turnSpeed = 90f / animLength;
+    }
+
+    void HandleTurning()
+    {
+        // 持续转向
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, _targetTurnRotation, _turnSpeed * Time.deltaTime);
+
+        // 检查角度差
+        if (Quaternion.Angle(transform.rotation, _targetTurnRotation) < 5f)
+        {
+            currentState = TitanState.Chasing;
+            _animator.CrossFade(runAnimationName, 0.25f);
         }
     }
 
     void DecideAttack()
     {
+        // 1. 物理筛选
+        var potentialAttacks = new List<TitanAttackType>();
+        var validAttacks = new List<TitanAttackType>();
         foreach (var zone in attackDecisionZones)
         {
-            if (zone.IsPlayerInside())
-            {
-                potentialAttacks.Add(zone.attackType);
-            }
+            //if (zone.IsPlayerInside()) 
+            potentialAttacks.Add(zone.attackType);
         }
-        if (potentialAttacks.Count == 0) return; // 没有可用的攻击
-        // 物理检测 (你已注释掉)
-        
-        // ... (你的 foreach (var zone...) 逻辑) ...
-        
-        // 智能检测 (你正在使用的逻辑)
+        if (potentialAttacks.Count == 0) 
+        {
+            ReturnToChase(); // 没有可用攻击，回追逐
+            return;
+        }
+
+        // 2. 智能筛选
         validAttacks.Clear();
         if (useSmartAttack)
         {
             foreach (var type in potentialAttacks)
             {
-                TitanAttackSO info = attackInfos.FirstOrDefault(a => a.attackType == type);
-                if (info != null && info.CheckSmartAttack(transform, player.position, playerVelocity, AttackSpeed, Size))
+                var info = attackInfos.FirstOrDefault(a => a.attackType == type);
+                if (info != null && info.CheckSmartAttack(
+                    transform, player.position, 
+                    _calculatedVelocity, _calculatedAcceleration*0, // 使用FixedUpdate计算出的物理量
+                    AttackSpeed, Size))
                 {
                     validAttacks.Add(type);
                 }
@@ -154,167 +357,174 @@ public class TitanController : MonoBehaviour
         }
         else
         {
-            validAttacks.AddRange(potentialAttacks); // 不用智能检测，全都有效
+            validAttacks.AddRange(potentialAttacks);
         }
 
-        // 随机选择
+        // 3. 执行
         if (validAttacks.Count > 0)
         {
-            TitanAttackType attackToUse = validAttacks[Random.Range(0, validAttacks.Count)];
-            StartAttack(attackToUse);
+            StartAttack(validAttacks[Random.Range(0, validAttacks.Count)]);
         }
+        else
+        {
+            ReturnToChase();
+        }
+    }
+    
+    void ReturnToChase()
+    {
+        currentState = TitanState.Chasing;
+        ResetChaseLogic();
     }
 
     void StartAttack(TitanAttackType attackType)
     {
-        // 5. (关键!) 停止任何正在运行的旧协程 (无论是攻击还是受伤)
-        if (_activeStateCoroutine != null)
-        {
-            StopCoroutine(_activeStateCoroutine);
-        }
+        if (_activeStateCoroutine != null) StopCoroutine(_activeStateCoroutine);
 
         currentState = TitanState.Attacking;
-        currentAttackType = attackType;
-        
+        _currentAttackType = attackType;
+
+        // 攻击瞬间再次校准朝向
         Vector3 lookPos = player.position - transform.position;
         lookPos.y = 0;
         transform.rotation = Quaternion.LookRotation(lookPos);
 
-        animator.Play(attackType.ToString());
-        TitanAttackSO info = attackInfos.FirstOrDefault(a => a.attackType == attackType);
-        // 6. 启动新的“攻击结束”协程
-        if (info != null && info.animationLength > 0)
-        {
-            float scaledDuration = info.animationLength / AttackSpeed;
-            // 启动协程
-            _activeStateCoroutine = StartCoroutine(StateFinishedRoutine(scaledDuration, TitanState.Attacking, TitanState.Chasing));
-        }
-        else
-        {
-            // 容错处理
-            Debug.LogWarning($"找不到 {attackType} 的 SO 或 AnimationLength 为 0，使用默认 2秒");
-            _activeStateCoroutine = StartCoroutine(StateFinishedRoutine(2.0f, TitanState.Attacking, TitanState.Chasing));
-        }
-    }
+        _animator.speed = this.AttackSpeed;
+        _animator.Play(attackType.ToString());
 
-    void UpdatePlayerVelocity()
-    {
-        if (Time.deltaTime > 0)
-        {
-            playerVelocity = (player.position - lastPlayerPos) / Time.deltaTime;
-            lastPlayerPos = player.position;
-        }
+        var info = attackInfos.FirstOrDefault(a => a.attackType == attackType);
+        float duration = (info != null && info.animationLength > 0) ? info.animationLength : 2.0f;
+        
+        // 启动状态恢复协程
+        _activeStateCoroutine = StartCoroutine(StateFinishedRoutine(duration / AttackSpeed, TitanState.Attacking, TitanState.Chasing));
     }
 
     #endregion
 
-    #region 公共接口 (由其他脚本调用)
+    #region --- 物理计算 (FixedUpdate) ---
+
+    void RecordPlayerPhysics()
+    {
+        _playerPosHistory.Enqueue(player.position);
+        if (_playerPosHistory.Count > 3) _playerPosHistory.Dequeue();
+
+        if (_playerPosHistory.Count == 3)
+        {
+            Vector3[] p = _playerPosHistory.ToArray();
+            float dt = Time.fixedDeltaTime;
+
+            Vector3 v1 = (p[1] - p[0]) / dt;
+            Vector3 v2 = (p[2] - p[1]) / dt;
+
+            _calculatedVelocity = v2; // 更新全局速度
+            Vector3 rawAccel = (v2 - v1) / dt;
+
+            // 过滤爆发力
+            _calculatedAcceleration = (rawAccel.magnitude > 30f) ? Physics.gravity : rawAccel;
+        }
+        else
+        {
+            _calculatedVelocity = Vector3.zero;
+            _calculatedAcceleration = Physics.gravity;
+        }
+    }
+    #endregion
+
+    #region --- 公共接口 & 辅助 ---
 
     public void OnTakeDamage(BodyPart part, int damage)
     {
         if (currentState == TitanState.Dead) return;
 
-        // 8. (关键!) 无论如何，先停止当前正在运行的协程 (它可能是攻击协程)
         if (_activeStateCoroutine != null)
         {
             StopCoroutine(_activeStateCoroutine);
             _activeStateCoroutine = null;
         }
         
-        // 立即重置攻击类型 (因为攻击被打断了)
-        currentAttackType = TitanAttackType.None;
+        _currentAttackType = TitanAttackType.None;
+        _animator.speed = 1.0f; // 重置动画速度
+        DisableAllHitboxes();   // 关闭残留判定
 
         if (part == BodyPart.Nape)
         {
             currentState = TitanState.Dead;
-            agent.enabled = false;
-            animator.Play(deathAnimationName); // 播放死亡动画
-            // 死亡是最终状态，不启动新协程
+            _agent.enabled = false;
+            _animator.Play(deathAnimationName);
         }
-        else if (part == BodyPart.Hand_L || part == BodyPart.Foot_L || part == BodyPart.Eye)
+        else if (IsNonLethalPart(part))
         {
             currentState = TitanState.Hurt;
-            animator.Play(hurtAnimationName); // 播放受伤动画
-
-            // 9. 启动新的“受伤结束”协程
-            
-                // 启动协程, 告诉它在 "Hurt" 状态结束后, 下一步进入 "Chasing"
+            _animator.Play(hurtAnimationName);
             _activeStateCoroutine = StartCoroutine(StateFinishedRoutine(hurtTime, TitanState.Hurt, TitanState.Chasing));
-            
         }
+    }
+    
+    private bool IsNonLethalPart(BodyPart part)
+    {
+        return part == BodyPart.Hand_L || part == BodyPart.Foot_L || part == BodyPart.Eye; // 示例
     }
 
     public void OnAttackHitPlayer(PlayerStateMachine player)
     {
-        TitanAttackSO info = attackInfos.FirstOrDefault(a => a.attackType == currentAttackType);
+        var info = attackInfos.FirstOrDefault(a => a.attackType == _currentAttackType);
         if (info == null) return;
-
-        if (currentAttackType == TitanAttackType.LMiddleGrab) // 假设这是抓取
-        {
-            // ... (抓取逻辑)
-        }
-        else
-        {
-            // ... (伤害逻辑)
-        }
+        // 处理伤害逻辑...
     }
-    #endregion
 
-    #region 自动化协程
-
-    // 7. 我们的自动化状态机协程
-    /// <summary>
-    /// 在指定时间后自动退出一个状态
-    /// </summary>
-    /// <param name="duration">动画时长</param>
-    /// <param name="stateToExit">要检查的当前状态</param>
-    /// <param name="nextState">要进入的下一个状态</param>
     private IEnumerator StateFinishedRoutine(float duration, TitanState stateToExit, TitanState nextState)
     {
-        // 在动画结束前 0.05 秒检查
-        float waitTime = duration - 0.05f;
-        if (waitTime < 0) waitTime = 0;
-
+        float waitTime = Mathf.Max(0, duration - 0.05f);
         yield return new WaitForSeconds(waitTime);
 
-        // (关键!) 检查我们是否仍处于我们期望的状态
-        // 如果是，说明我们没有被另一个状态（如Hurt）打断
         if (currentState == stateToExit)
         {
             currentState = nextState;
-            currentAttackType = TitanAttackType.None; // 只有在状态正常结束时才重置
+            _currentAttackType = TitanAttackType.None;
         }
-
-        _activeStateCoroutine = null; // 协程任务完成，清空引用
+        _activeStateCoroutine = null;
     }
 
-    // 缓存所有动画剪辑的长度
+    // 头部追踪逻辑封装
+    void LateUpdateHead(Vector3 targetPos)
+    {
+        Vector3 dir = targetPos - headBone.position;
+        Quaternion targetLook = Quaternion.LookRotation(dir);
+        Quaternion localTarget = Quaternion.Inverse(transform.rotation) * targetLook;
+        
+        Vector3 euler = localTarget.eulerAngles;
+        float x = ClampAngle(euler.x, -maxHeadAngleY, maxHeadAngleY);
+        float y = ClampAngle(euler.y, -maxHeadAngleX, maxHeadAngleX);
+
+        Quaternion clampedLocal = Quaternion.Euler(x, y, 0);
+        headBone.rotation = Quaternion.Lerp(_oldHeadRotation, transform.rotation * clampedLocal, Time.deltaTime * 5f);
+        _oldHeadRotation = headBone.rotation;
+    }
+
+    float ClampAngle(float angle, float min, float max)
+    {
+        if (angle > 180) angle -= 360;
+        return Mathf.Clamp(angle, min, max);
+    }
+    
+    private void DisableAllHitboxes()
+    {
+        foreach(var kvp in _hitboxCache) kvp.Value.DisableHitbox();
+    }
 
     #endregion
 
-    #region 动画事件 (现在只剩 Hitbox)
-
-    // 10. (注意!) 我们现在删除了 AttackFinished 和 HurtFinished
-    // 我们 *仍然需要* Hitbox 的事件
-
+    #region --- 动画事件 ---
     public void AnimationEvent_EnableHitbox(string hitboxName)
     {
-        if (hitboxCache.ContainsKey(hitboxName))
-        {
-            hitboxCache[hitboxName].EnableHitbox();
-        }
+        if (_hitboxCache.TryGetValue(hitboxName, out var hitbox))
+            hitbox.EnableHitbox();
     }
 
     public void AnimationEvent_DisableHitbox(string hitboxName)
     {
-        if (hitboxCache.ContainsKey(hitboxName))
-        {
-            hitboxCache[hitboxName].DisableHitbox();
-        }
+        if (_hitboxCache.TryGetValue(hitboxName, out var hitbox))
+            hitbox.DisableHitbox();
     }
-    
-    // AnimationEvent_AttackFinished() <-- 已删除
-    // AnimationEvent_HurtFinished() <-- 已删除
-
     #endregion
 }
