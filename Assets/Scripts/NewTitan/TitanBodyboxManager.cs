@@ -9,6 +9,7 @@ public class TitanBodyboxManager : MonoBehaviour
 
     [Tooltip("玩家在这个距离内才会尝试启用碰撞器")]
     public float detectionDistance = 100f;
+    public float detectionDistance2 = 15f;
 
     [Tooltip("摄像机朝向与巨人连线的最大夹角 (度)")]
     [Range(0, 180)]
@@ -42,7 +43,7 @@ public class TitanBodyboxManager : MonoBehaviour
         // 2. 确定巨人的“中心点” (默认用根节点，如果有胸部骨骼建议赋值给这里，计算角度更准)
         // 简单起见，我们这里使用 transform.position + 向上偏移一点，防止脚底坐标导致角度偏差
         // 你也可以手动在 Inspector 中指定一个 Transform
-        
+
 
         // 3. 获取所有指定图层的子碰撞器并初始化
         FindAndInitColliders();
@@ -57,24 +58,32 @@ public class TitanBodyboxManager : MonoBehaviour
         // 1. 计算距离平方 (比 Vector3.Distance 更快)
         float sqrDist = (_titanCenter.position - _playerCamera.position).sqrMagnitude;
         bool isCloseEnough = sqrDist < (detectionDistance * detectionDistance);
-
+        bool isCloseEnough2 = sqrDist < (detectionDistance2 * detectionDistance2);
         // 默认不看
         bool isLookingAt = false;
-
-        // 只有距离够近时，才去计算角度 (省性能)
-        if (isCloseEnough)
+        if (isCloseEnough2)
         {
-            // 2. 计算角度
-            // 向量：摄像机 -> 巨人
-            Vector3 dirToTitan = (_titanCenter.position - _playerCamera.position).normalized;
-            // 夹角：摄像机正前方 vs 指向巨人的方向
-            float angle = Vector3.Angle(_playerCamera.forward, dirToTitan);
-            
-            if (angle < viewAngleThreshold)
+            isLookingAt = true;
+        }
+        else
+        {
+            if (isCloseEnough)
             {
-                isLookingAt = true;
+                // 2. 计算角度
+                // 向量：摄像机 -> 巨人
+                Vector3 dirToTitan = (_titanCenter.position - _playerCamera.position).normalized;
+                // 夹角：摄像机正前方 vs 指向巨人的方向
+                float angle = Vector3.Angle(_playerCamera.forward, dirToTitan);
+
+                if (angle < viewAngleThreshold)
+                {
+                    isLookingAt = true;
+                }
             }
         }
+
+        // 只有距离够近时，才去计算角度 (省性能)
+
 
         // --- 状态切换逻辑 ---
         // 只有满足：(够近) AND (正在看) -> 启用
@@ -109,7 +118,7 @@ public class TitanBodyboxManager : MonoBehaviour
 
         // 初始化：强制禁用所有
         SetCollidersState(false);
-        
+
         Debug.Log($"TitanBodyManager: 初始化完成，找到 {bodyColliders.Count} 个身体碰撞器。");
     }
 
@@ -128,7 +137,7 @@ public class TitanBodyboxManager : MonoBehaviour
             }
         }
     }
-    
+
     // 可视化调试范围
     void OnDrawGizmosSelected()
     {

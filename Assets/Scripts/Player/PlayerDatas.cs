@@ -6,7 +6,10 @@ public class PlayerDatas : MonoBehaviour
 {
     public Animator animator;
     public Transform footPos;
+    public Transform headPos;
     [Header("AttackState")]
+    public float attackCooldown=1f;
+    public LayerMask neckLayer;
     public float attackRange = 2.0f;
     public float detectRange=3.0f;
     public float attackTime=1f;
@@ -46,6 +49,7 @@ public class PlayerDatas : MonoBehaviour
     #endregion
     #region SwingState
     [Header("SwingState")]
+    public float minShinkDistance = 1.0f;
     public float swingDrag=6.0f;
     public float maxHookDistance = 50.0f;
     public float shinkForce = 2000.0f;

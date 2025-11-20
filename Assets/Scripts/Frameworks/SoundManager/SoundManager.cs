@@ -10,7 +10,8 @@ public enum SoundCategory
     None,
     Footsteps,
     Attack,
-    Hit
+    Hit,
+    Blood,
 }
 
 [System.Serializable]
@@ -111,30 +112,51 @@ public class SoundManager : SingletonBase<SoundManager> //
     // 
 
     /// <summary>
-    /// 
+    /// 播放随机音效
     /// </summary>
-    public void PlayRandom(SoundCategory category, Vector3 position, float volume = 1f)
+    /// <param name="category">音效类别</param>
+    /// <param name="position">播放位置</param>
+    /// <param name="volume">音量</param>
+    /// <param name="startTime">起始播放时间（秒）</param>
+    public void PlayRandom(SoundCategory category, Vector3 position,  float startTime = 0f,float volume = 1f)
     {
         if (category == SoundCategory.None || !soundDictionary.ContainsKey(category))
         {
             return; 
         }
 
-        // 1. 
+        // 1. 获取随机片段
         AudioClip[] clips = soundDictionary[category];
         AudioClip randomClip = clips[Random.Range(0, clips.Length)];
 
-        // 2. 
+        // [安全检查] 如果起始时间超过了音频长度，重置为0或者报错
+        if (startTime >= randomClip.length)
+        {
+            // Debug.LogWarning("起始时间超过音频长度，已重置为0");
+            startTime = 0f; 
+        }
+
+        // 2. 从池中取对象
         AudioSource source = TakeFromPool();
         
-        // 3. 
+        // 3. 设置属性
         source.transform.position = position;
         source.clip = randomClip;
         source.volume = volume;
+        
+        // --- 核心修改 ---
+        source.time = startTime; // 设置起始时间 (注意：这必须在 Play() 之前或之后立即设置)
+        // ----------------
+
         source.Play();
         
-        // 4. 
-        source.GetComponent<AutoRecycleAudio>()?.StartAutoRecycle(randomClip.length);
+        // 4. 计算剩余时长进行回收
+        // 实际播放时长 = 总长度 - 起始时间
+        // 注意：如果你的 AudioSource Pitch (音调) 不是 1，这里还需要除以 Math.Abs(source.pitch)
+        float remainingDuration = randomClip.length - startTime;
+        
+        // 加上一点点缓冲时间(0.1f)，防止正好卡在结束时回收导致听起来像被截断
+        source.GetComponent<AutoRecycleAudio>()?.StartAutoRecycle(remainingDuration + 0.1f);
     }
     
     /// <summary>

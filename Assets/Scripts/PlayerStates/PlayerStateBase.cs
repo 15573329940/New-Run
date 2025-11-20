@@ -28,6 +28,9 @@ public class PlayerStateBase
     public float rayRadius;
     public bool hasInput;
     float lasthitTime = 0f; 
+    public List<Transform> currentAnchors;
+    private Transform lastTitanbody;
+    private bool hitTitanbody = false;
     #endregion
     public virtual void Init()
     {
@@ -42,6 +45,7 @@ public class PlayerStateBase
         whatIsWall = LayerMask.GetMask("WhatIsWall");//获取墙壁层
         hookActive = new List<bool> { false, false };
         rayRadius = pd.rayRadius;
+        currentAnchors = new List<Transform>{ null, null };
     }//初始化
     public virtual void Enter() { }//进入状态
     public virtual void Exit() { }//退出状态
@@ -68,13 +72,20 @@ public class PlayerStateBase
             {
                 if (hitFound)
                 {
-
+                    pd.swingPredictionBalls[i].gameObject.SetActive(true);
+                    GameObject anchor = new GameObject("HookAnchor_" + i);
+                    currentAnchors[i] = anchor.transform;
+                    if (hitTitanbody)
+                    {
+                        anchor.transform.parent = lastTitanbody;
+                    }
                     sm.EnterState<PlayerSwingState>(i);
                 }
             }
         }
 
-        if (Input.GetKeyDown(attackKey) && sm.curState.GetType() != typeof(PlayerWallRunningState))
+        if (Input.GetKeyDown(attackKey) && sm.curState.GetType() != typeof(PlayerWallRunningState)
+        && sm.curState.GetType() != typeof(PlayerSwingState))
         {
             sm.EnterState<PlayerAttackState>();
         }
@@ -112,6 +123,15 @@ public class PlayerStateBase
             {
                 if (Physics.Raycast(ray, out RaycastHit hit, pd.maxHookDistance, pd.whatIsGrappleable))
                 {
+                    if(hit.collider.gameObject.layer == LayerMask.NameToLayer("TitanBodybox"))
+                    {
+                        lastTitanbody = hit.collider.transform;
+                        hitTitanbody=true;
+                    }
+                    else
+                    {
+                        hitTitanbody=false;
+                    }
                     targetPoint = hit.point;
                     hitFound = true;
                     CursorAimer.SetCursorColor(new Color(1, 0, 0, 0.5f));
@@ -133,7 +153,7 @@ public class PlayerStateBase
             }
 
             // 更新预测球位置（即使不可见，也设位置便于调试）
-            pd.swingPredictionBalls[i].position = targetPoint;
+            if(!hookActive[i])pd.swingPredictionBalls[i].position = targetPoint;
 
             // 始终隐藏预测球（根据你的要求 "不可见"）
             //pd.swingPredictionBalls[i].gameObject.SetActive(true);

@@ -5,6 +5,7 @@ using UnityEngine;
 public class PlayerSwingState : PlayerStateBase
 {
     public List<Vector3> targetPoints;
+    private float lastAttackTime;
     public List<Vector3> hookFlyingPos;
     public List<bool> isShinking;
     public override void Init()
@@ -26,6 +27,7 @@ public class PlayerSwingState : PlayerStateBase
     override public void Enter()
     {
         base.Enter();
+        ani.SetBool("isSwing",true);
         ani.Play("Swing");
         rb.drag = pd.swingDrag;
         pd.StartCoroutine(DelayedSetShrinking(index, pd.hookDelay));
@@ -36,7 +38,7 @@ public class PlayerSwingState : PlayerStateBase
     }
     override public void Exit()
     {
-        
+        ani.SetBool("isSwing",false);
         base.Exit();
 
 
@@ -59,9 +61,18 @@ public class PlayerSwingState : PlayerStateBase
         base.Update();
         CheckKeyUp();
         CheckKeyDown();
+        if (hasInput)
+        {
+            Move();
+        }
+        
         if (Input.GetKeyDown(shiftKey))
         {
             Spray();
+        }
+        if(Input.GetKeyDown(attackKey))
+        {
+            Attack();
         }
     }
     public override void LateUpdate()
@@ -71,12 +82,18 @@ public class PlayerSwingState : PlayerStateBase
     }
     void Move()
     {
-        rb.AddForce((orientation.forward*horizontalInput+orientation.right*verticalInput)
+        rb.AddForce((cam.transform.forward*verticalInput+cam.transform.right*horizontalInput)
                     .normalized*pd.swingMoveSpeed);        
     }
 
     void ShinkJoint(int i)
     {
+        float currentDistanceSqr = (targetPoints[i] - player.transform.position).sqrMagnitude;
+        if (currentDistanceSqr < pd.minShinkDistance * pd.minShinkDistance)
+        {
+            return;
+        }
+        targetPoints[i] = pd.swingPredictionBalls[i].position;//关节位置为带预测的hit点
         Vector3 directionToTargetPoint = (targetPoints[i] - player.transform.position).normalized;
         rb.AddForce(directionToTargetPoint * pd.shinkForce);
         
@@ -101,6 +118,10 @@ public class PlayerSwingState : PlayerStateBase
                 isShinking[i] = false;
                 pd.lrs[i].positionCount = 0;
                 hookActive[i] = false;
+                pd.swingPredictionBalls[i].gameObject.SetActive(false);
+                GameObject.Destroy(currentAnchors[i]?.gameObject);
+                currentAnchors[i] = null;
+                //pd.swingPredictionBalls[i].SetParent(null);
                 if (!hookActive[0] && !hookActive[1])
                 {
                     sm.EnterState<PlayerAirState>();
@@ -119,7 +140,8 @@ public class PlayerSwingState : PlayerStateBase
             {
                 pd.StartCoroutine(DelayedSetShrinking(i, pd.hookDelay));
                 hookActive[i] = true;
-                targetPoints[i] = pd.swingPredictionBalls[i].position;//关节位置为带预测的hit点
+                
+                pd.swingPredictionBalls[i].gameObject.SetActive(true);
                 hookFlyingPos[i] = pd.gunTips[i].position;
                 pd.lrs[i].positionCount = 2;
 
@@ -143,7 +165,31 @@ public class PlayerSwingState : PlayerStateBase
     }
     void Attack()
     {
+        if(Time.time - lastAttackTime < pd.attackCooldown)
+        {
+            return;
+        }
+        lastAttackTime = Time.time;
         rb.velocity = Vector3.zero;
-        rb.AddForce(cam.transform.forward * pd.attackForce, ForceMode.Impulse);
+        
+        ani.Play("Attack");
+        Collider[] necks = Physics.OverlapSphere(pd.headPos.position, pd.detectRange, pd.neckLayer);
+        if (necks.Length != 0)
+        {
+            Transform neck = necks[0].transform;
+            Debug.Log("Neck position: " + neck.position + ", Player position: " + player.position);
+            Vector3 direction = (neck.position - player.position).normalized;
+            if(Vector3.Dot(direction, cam.transform.forward)>0.5f)
+            {
+                player.forward = new Vector3(direction.x, 0, direction.z);
+                rb.AddForce(direction * pd.attackForce, ForceMode.Impulse);
+            }
+            
+        }
+        else
+        {
+            rb.AddForce(cam.transform.forward * pd.attackForce, ForceMode.Impulse);
+        }
+        
     }
 }
